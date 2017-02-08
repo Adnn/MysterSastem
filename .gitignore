@@ -1,29 +1,37 @@
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
+# common #
+*.*~
 
-# Precompiled Headers
-*.gch
-*.pch
+# Cmake #
+/build/
+/build_*/
 
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
+# Vim #
+*.swp
+*.swo
 
-# Fortran module files
-*.mod
-*.smod
+# OS X#
 
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
+## system ##
+*.DS_Store
 
-# Executables
-*.exe
-*.out
-*.app
+## XCode ##
+*.pbxuser
+*.xccheckout
+*.mode1v3
+xcuserdata/
+*.dSYM
+
+# Windows #
+
+## system ##
+Thumbs.db
+
+## Visual Studio ##
+*.suo
+*.sdf
+*.ncb
+*.user
+ipch
+
+
+

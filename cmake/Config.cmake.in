@@ -1,0 +1,9 @@
+@TARGET_DEPENDENCIES@
+
+# This file contains checks for dependee targets imported from their build tree.
+# It is only present in @PROJECT_NAME@'s build tree, not when installed (c.f. OPTIONAL)
+include(${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Config-BuildTreeChecks.cmake OPTIONAL)
+
+# Everything that is need to use the headers / libraries of @PROJECT_NAME@ is provided
+# in the generated "export" file. This file was installed by install(EXPORT...).
+include("${CMAKE_CURRENT_LIST_DIR}/@TARGETFILE@") 

@@ -1,0 +1,6 @@
+if(COMMAND cmc_check_import_DIR)
+    @BUILD_TREE_DIR_CHECKS@
+else()
+    message(WARNING "The cmc_check_import function is not available, you should not assume automatic recompilation of projects imported from their build tree.")
+    message(AUTHOR_WARNING "If you are using cmake_utilities (cmc), try to update it to a newer version providing cmc_check_import().")
+endif()
