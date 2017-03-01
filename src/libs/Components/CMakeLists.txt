@@ -12,7 +12,9 @@ set(${PROJECT_NAME}_DOXYGEN
 # TODO : list .h files here. 
 # Helpful windows command : dir /b /oen
 set(${PROJECT_NAME}_HEADERS
+    AddressingModes.h
     Memory.h
+    RegisterSet.h
     z80.h
 )
 

@@ -49,7 +49,7 @@ int main(int argc, char **argv)
     components::Memory memory(program);
     components::z80 cpu(memory);
 
-    while (static_cast<components::value_16b>(cpu.PC()) != programSize)
+    while (static_cast<components::value_16b>(cpu.registers().PC()) != programSize)
     {
         cpu.step();
     }

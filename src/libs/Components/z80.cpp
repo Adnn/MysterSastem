@@ -124,20 +124,9 @@ struct SpecialState
      Prefix prefix = Prefix::None;
 };
 
-Register<value_16b> z80::indexRegister(Prefix aPrefix)
-{
-    switch(aPrefix)
-    {
-        case Prefix::DD:
-            return makeRegister(mIX, "IX");
-        case Prefix::FD:
-            return makeRegister(mIY, "IY");
-    }
-}
-
 value_8b z80::fetch()
 {
-    return mMemory[Address(mPC++)];
+    return mMemory[Address(static_cast<value_16b&>(registers().PC())++)];
 }
 
 enum Flags
@@ -154,11 +143,11 @@ enum Flags
 
 void z80::handleFlag(value_8b aReference)
 {
-    editBit(mActiveRegisters.F(), S, (asSigned(aReference) < 0));
-    editBit(mActiveRegisters.F(), Z, (aReference == 0));
-    zeroBit(mActiveRegisters.F(), H);
-    editBit(mActiveRegisters.F(), PV, mIFF2);
-    zeroBit(mActiveRegisters.F(), N);
+    editBit(registers().F(), S, (asSigned(aReference) < 0));
+    editBit(registers().F(), Z, (aReference == 0));
+    zeroBit(registers().F(), H);
+    editBit(registers().F(), PV, registers().IFF2());
+    zeroBit(registers().F(), N);
 }
 
 struct Instruction
@@ -246,6 +235,10 @@ void z80::step()
         opcode = fetch();
     }
 
+
+    /*
+     * 8-Bit Load Group
+     */
     // MetaData
     // LD ${r_dest}, ${r_source}
     // 1M 4T
@@ -255,8 +248,8 @@ void z80::step()
        )
     {
         STEP(makeLoad(1, 4,
-                      mActiveRegisters.identify8(opcode, Shift::None),
-                      mActiveRegisters.identify8(opcode, Shift::Third))); 
+                      registers().identify8(opcode, Shift::None),
+                      registers().identify8(opcode, Shift::Third))); 
     }
 
     // MetaData
@@ -268,7 +261,7 @@ void z80::step()
     {
         STEP(makeLoad(2, 7,
                       Immediate<value_8b>{fetch()},
-                      mActiveRegisters.identify8(opcode, Shift::Third))); 
+                      registers().identify8(opcode, Shift::Third))); 
     }
 
     else if (checkOp(opcode, LD_r_ria))
@@ -279,8 +272,8 @@ void z80::step()
         if (state.prefix == Prefix::None)
         {
             STEP(makeLoad(2, 7,
-                          makeMemoryAccess(mMemory, mActiveRegisters.HL()),
-                          mActiveRegisters.identify8(opcode, Shift::Third)));
+                          makeMemoryAccess(mMemory, registers().HL()),
+                          registers().identify8(opcode, Shift::Third)));
         }
 
         // MetaData
@@ -289,8 +282,8 @@ void z80::step()
         else
         {
             STEP(makeLoad(5, 19,
-                          makeMemoryAccess(mMemory, Indexed{ indexRegister(state.prefix), asSigned(fetch())}),
-                          mActiveRegisters.identify8(opcode, Shift::Third)));
+                          makeMemoryAccess(mMemory, Indexed{ registers().getIndex(state.prefix), asSigned(fetch())}),
+                          registers().identify8(opcode, Shift::Third)));
         }
     }
 
@@ -302,8 +295,8 @@ void z80::step()
         if (state.prefix == Prefix::None)
         {
             STEP(makeLoad(2, 7,
-                          mActiveRegisters.identify8(opcode, Shift::None),
-                          makeMemoryAccess(mMemory, mActiveRegisters.HL())));
+                          registers().identify8(opcode, Shift::None),
+                          makeMemoryAccess(mMemory, registers().HL())));
         }
 
         // MetaData
@@ -312,8 +305,8 @@ void z80::step()
         else
         {
             STEP(makeLoad(5, 19,
-                          mActiveRegisters.identify8(opcode, Shift::None),
-                          makeMemoryAccess(mMemory, Indexed{ indexRegister(state.prefix), asSigned(fetch()) })));
+                          registers().identify8(opcode, Shift::None),
+                          makeMemoryAccess(mMemory, Indexed{ registers().getIndex(state.prefix), asSigned(fetch()) })));
         }
     }
 
@@ -326,7 +319,7 @@ void z80::step()
         {
             STEP(makeLoad(3, 10,
                           Immediate<value_8b>{ fetch() },
-                          makeMemoryAccess(mMemory, mActiveRegisters.HL())));
+                          makeMemoryAccess(mMemory, registers().HL())));
         }
 
         // MetaData
@@ -337,7 +330,7 @@ void z80::step()
             signed_8b d = asSigned(fetch());
             STEP(makeLoad(5, 19,
                           Immediate<value_8b>{ fetch() },
-                          makeMemoryAccess(mMemory, Indexed{ indexRegister(state.prefix), d })));
+                          makeMemoryAccess(mMemory, Indexed{ registers().getIndex(state.prefix), d })));
         }
     }
 
@@ -347,8 +340,8 @@ void z80::step()
         // LD A, (BC)
         // 2M 7(4,3)T
         STEP(makeLoad(2, 7,
-                      makeMemoryAccess(mMemory, mActiveRegisters.BC()),
-                      mActiveRegisters.A()));
+                      makeMemoryAccess(mMemory, registers().BC()),
+                      registers().A()));
     }
 
     else if (checkOp(opcode, LD_A_pDE))
@@ -357,8 +350,8 @@ void z80::step()
         // LD A, (DE)
         // 2M 7(4,3)T
         STEP(makeLoad(2, 7,
-                      makeMemoryAccess(mMemory, mActiveRegisters.DE()),
-                      mActiveRegisters.A()));
+                      makeMemoryAccess(mMemory, registers().DE()),
+                      registers().A()));
     }
 
     else if (checkOp(opcode, LD_A_pnn))
@@ -369,7 +362,7 @@ void z80::step()
         value_16b nn(fetch(), fetch());
         STEP(makeLoad(4, 13,
                       makeMemoryAccess(mMemory, nn),
-                      mActiveRegisters.A()));
+                      registers().A()));
     }
 
     else if (checkOp(opcode, LD_pBC_A))
@@ -378,8 +371,8 @@ void z80::step()
         // LD (BC), A
         // 2M 7(4,3)T
         STEP(makeLoad(2, 7,
-                      mActiveRegisters.A(),
-                      makeMemoryAccess(mMemory, mActiveRegisters.BC())));
+                      registers().A(),
+                      makeMemoryAccess(mMemory, registers().BC())));
     }
 
     else if (checkOp(opcode, LD_pDE_A))
@@ -388,8 +381,8 @@ void z80::step()
         // LD (DE), A
         // 2M 7(4,3)T
         STEP(makeLoad(2, 7,
-                      mActiveRegisters.A(),
-                      makeMemoryAccess(mMemory, mActiveRegisters.DE())));
+                      registers().A(),
+                      makeMemoryAccess(mMemory, registers().DE())));
     }
 
     else if (checkOp(opcode, LD_pnn_A))
@@ -399,7 +392,7 @@ void z80::step()
         // 4M 13(4,3,3,3)T
         value_16b nn(fetch(), fetch());
         STEP(makeLoad(4, 13,
-                      mActiveRegisters.A(),
+                      registers().A(),
                       makeMemoryAccess(mMemory, nn)));
     }
 
@@ -412,8 +405,8 @@ void z80::step()
             // LD A, I
             // 2M 9(4,5)T
             STEP(makeLoadAndFlag(2, 9,
-                                 I(),
-                                 mActiveRegisters.A(),
+                                 registers().I(),
+                                 registers().A(),
                                  *this));
             /// \todo "If an interrupt occurs during execution of this instruction, the Parity flag contains a 0."
         }
@@ -424,8 +417,8 @@ void z80::step()
             // LD A, R
             // 2M 9(4,5)T
             STEP(makeLoadAndFlag(2, 9,
-                                 R(),
-                                 mActiveRegisters.A(),
+                                 registers().R(),
+                                 registers().A(),
                                  *this));
             /// \todo "If an interrupt occurs during execution of this instruction, the Parity flag contains a 0."
         }
@@ -436,7 +429,7 @@ void z80::step()
             // LD I, A
             // 2M 9(4,5)T
             STEP(makeLoad(2, 9,
-                          mActiveRegisters.A(), I()));
+                          registers().A(), registers().I()));
         }
 
         else if (checkOp(opcode, LD_R_A))
@@ -445,7 +438,12 @@ void z80::step()
             // LD R, A
             // 2M 9(4,5)T
             STEP(makeLoad(2, 9,
-                          mActiveRegisters.A(), R()));
+                          registers().A(), registers().R()));
         }
     }
+
+
+    /*
+     * 16-Bit Load Group
+     */
 }

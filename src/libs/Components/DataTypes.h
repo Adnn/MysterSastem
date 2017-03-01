@@ -78,6 +78,20 @@ private:
     std::uint16_t mValue;
 };
 
+enum class Prefix
+{
+    None,
+    DD,
+    FD
+};
+
+typedef unsigned Shift_underlying;
+enum class Shift : Shift_underlying
+{
+    None = 0,
+    Third = 3,
+};
+
 }}} // namespace ad::sms::components
 
 #endif
