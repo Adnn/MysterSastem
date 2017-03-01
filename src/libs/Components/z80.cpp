@@ -2,6 +2,8 @@
 
 #include "Memory.h"
 
+#include <iostream>
+#include <sstream>
 #include <string>
 
 #include <cassert>
@@ -122,20 +124,20 @@ struct SpecialState
      Prefix prefix = Prefix::None;
 };
 
-value_16b &z80::indexRegister(Prefix aPrefix)
+Register<value_16b> z80::indexRegister(Prefix aPrefix)
 {
     switch(aPrefix)
     {
         case Prefix::DD:
-            return mIX;
+            return makeRegister(mIX, "IX");
         case Prefix::FD:
-            return mIY;
+            return makeRegister(mIY, "IY");
     }
 }
 
 value_8b z80::advance()
 {
-    return mMemory[mPC++];
+    return mMemory[Address(mPC++)];
 }
 
 enum Flags
@@ -152,14 +154,86 @@ enum Flags
 
 void z80::handleFlag(value_8b aReference)
 {
-    editBit(mActiveRegisters.F(), S, (asDisplacement(aReference) < 0));
+    editBit(mActiveRegisters.F(), S, (asSigned(aReference) < 0));
     editBit(mActiveRegisters.F(), Z, (aReference == 0));
     zeroBit(mActiveRegisters.F(), H);
     editBit(mActiveRegisters.F(), PV, mIFF2);
     zeroBit(mActiveRegisters.F(), N);
 }
 
-void z80::execute()
+struct Instruction
+{
+    unsigned int mOperations;
+    unsigned int mClockPeriods;
+};
+
+inline void load(value_8b aSource, value_8b &aDestination)
+{
+    aDestination = aSource;
+}
+
+template <class T_source, class T_destination>
+class Load : public Instruction
+{
+public:
+    Load(unsigned int aM, unsigned int aT, T_source aSource, T_destination aDestination) :
+                Instruction{aM, aT},
+            mSource(std::move(aSource)),
+            mDestination(std::move(aDestination))
+    {}
+
+    void execute() 
+    {
+        load(mSource, mDestination);
+    }
+
+    std::string disassemble()
+    {
+        std::ostringstream oss;
+        oss << "LD " << mDestination << ", " << mSource;
+        return oss.str();
+    }
+
+//private:
+    T_source        mSource;
+    T_destination   mDestination;
+};
+
+class LoadAndFlag : public Load<Register<value_8b>, Register<value_8b>>
+{
+    typedef Load<Register<value_8b>, Register<value_8b>> parent_type;
+
+public:
+    LoadAndFlag(unsigned int aM, unsigned int aT, Register<value_8b> aSource, Register<value_8b> aDestination,
+                z80 &aCpu) :
+                Load(aM, aT, std::move(aSource), std::move(aDestination)),
+            cpu(aCpu)
+    {}
+
+    void execute() 
+    {
+        parent_type::execute();
+        cpu.handleFlag(mSource);
+    }
+
+    z80 &cpu;
+};
+
+template <class T_source, class T_destination>
+Load<T_source, T_destination> makeLoad(unsigned aM, unsigned aT, T_source aSource, T_destination aDestination)
+{
+    return {aM, aT, std::move(aSource), std::move(aDestination)};
+}
+
+LoadAndFlag makeLoadAndFlag(unsigned aM, unsigned aT, Register<value_8b> aSource, Register<value_8b> aDestination,
+                            z80 &aCpu)
+{
+    return {aM, aT, std::move(aSource), std::move(aDestination), aCpu};
+}
+
+#define STEP(x) auto inst(x); std::cout << __LINE__ << ": " << inst.disassemble() << std::endl; /*inst.execute();*/ return;
+
+void z80::step()
 {
     SpecialState state;
 
@@ -175,19 +249,26 @@ void z80::execute()
     // MetaData
     // LD ${r_dest}, ${r_source}
     // 1M 4T
-    if ( checkOp(opcode, LD_r_r) )
+    if ( checkOp(opcode, LD_r_r)
+      && ((opcode & 0b00000111) != 0b00000110) //otherwise it catches LD_r_ria case...
+      && ((opcode & 0b00111000) != 0b00110000) //otherwise it catches LD_ria_r case...
+       )
     {
-        load(mActiveRegisters.identify8(opcode, Shift::None),
-             mActiveRegisters.identify8(opcode, Shift::Third));
+        STEP(makeLoad(1, 4,
+                      mActiveRegisters.identify8(opcode, Shift::None),
+                      mActiveRegisters.identify8(opcode, Shift::Third))); 
     }
 
     // MetaData
     // LD ${r_dest}, ${n}
     // 2M 7(4,3)T
-    else if ( checkOp(opcode, LD_r_n) )
+    else if ( checkOp(opcode, LD_r_n) 
+           && ((opcode & 0b00111000) != 0b00110000) //otherwise it catches LD_ria_n case...
+            )
     {
-        load(advance(),
-             mActiveRegisters.identify8(opcode, Shift::Third));
+        STEP(makeLoad(2, 7,
+                      Immediate<value_8b>{advance()},
+                      mActiveRegisters.identify8(opcode, Shift::Third))); 
     }
 
     else if (checkOp(opcode, LD_r_ria))
@@ -197,8 +278,9 @@ void z80::execute()
         // 2M 7(4,?6)T
         if (state.prefix == Prefix::None)
         {
-            load(mMemory[mActiveRegisters.HL()],
-                 mActiveRegisters.identify8(opcode, Shift::Third));
+            STEP(makeLoad(2, 7,
+                          makeMemoryAccess(mMemory, mActiveRegisters.HL()),
+                          mActiveRegisters.identify8(opcode, Shift::Third)));
         }
 
         // MetaData
@@ -206,8 +288,9 @@ void z80::execute()
         // 5M 19 (4, 4, 3, 5, 3)T
         else
         {
-            load(mMemory[indexRegister(state.prefix)+asDisplacement(advance())],
-                 mActiveRegisters.identify8(opcode, Shift::Third));
+            STEP(makeLoad(5, 19,
+                          makeMemoryAccess(mMemory, Indexed{ indexRegister(state.prefix), asSigned(advance())}),
+                          mActiveRegisters.identify8(opcode, Shift::Third)));
         }
     }
 
@@ -218,8 +301,9 @@ void z80::execute()
         // 2M 7(4,3)T
         if (state.prefix == Prefix::None)
         {
-            load(mActiveRegisters.identify8(opcode, Shift::None),
-                 mMemory[mActiveRegisters.HL()]);
+            STEP(makeLoad(2, 7,
+                          mActiveRegisters.identify8(opcode, Shift::None),
+                          makeMemoryAccess(mMemory, mActiveRegisters.HL())));
         }
 
         // MetaData
@@ -227,8 +311,9 @@ void z80::execute()
         // 5M 19 (4, 4, 3, 5, 3)T
         else
         {
-            load(mActiveRegisters.identify8(opcode, Shift::None),
-                 mMemory[indexRegister(state.prefix)+asDisplacement(advance())]);
+            STEP(makeLoad(5, 19,
+                          mActiveRegisters.identify8(opcode, Shift::None),
+                          makeMemoryAccess(mMemory, Indexed{ indexRegister(state.prefix), asSigned(advance()) })));
         }
     }
 
@@ -239,8 +324,9 @@ void z80::execute()
         // 3M 10(4,3,3)T
         if (state.prefix == Prefix::None)
         {
-            load(advance(),
-                 mMemory[mActiveRegisters.HL()]);
+            STEP(makeLoad(3, 10,
+                          Immediate<value_8b>{ advance() },
+                          makeMemoryAccess(mMemory, mActiveRegisters.HL())));
         }
 
         // MetaData
@@ -248,9 +334,10 @@ void z80::execute()
         // 5M 19 (4, 4, 3, 5, 3)T
         else
         {
-            signed_displacement_8b d = asDisplacement(advance());
-            load(advance(),
-                 mMemory[indexRegister(state.prefix)+d]);
+            signed_8b d = asSigned(advance());
+            STEP(makeLoad(5, 19,
+                          Immediate<value_8b>{ advance() },
+                          makeMemoryAccess(mMemory, Indexed{ indexRegister(state.prefix), d })));
         }
     }
 
@@ -259,7 +346,9 @@ void z80::execute()
         // MetaData
         // LD A, (BC)
         // 2M 7(4,3)T
-        load(mMemory[mActiveRegisters.BC()], mActiveRegisters.A());
+        STEP(makeLoad(2, 7,
+                      makeMemoryAccess(mMemory, mActiveRegisters.BC()),
+                      mActiveRegisters.A()));
     }
 
     else if (checkOp(opcode, LD_A_pDE))
@@ -267,7 +356,9 @@ void z80::execute()
         // MetaData
         // LD A, (DE)
         // 2M 7(4,3)T
-        load(mMemory[mActiveRegisters.DE()], mActiveRegisters.A());
+        STEP(makeLoad(2, 7,
+                      makeMemoryAccess(mMemory, mActiveRegisters.DE()),
+                      mActiveRegisters.A()));
     }
 
     else if (checkOp(opcode, LD_A_pnn))
@@ -276,7 +367,9 @@ void z80::execute()
         // LD A, (${nn})
         // 4M 13(4,3,3,3)T
         value_16b nn(advance(), advance());
-        load(mMemory[nn], mActiveRegisters.A());
+        STEP(makeLoad(4, 13,
+                      makeMemoryAccess(mMemory, nn),
+                      mActiveRegisters.A()));
     }
 
     else if (checkOp(opcode, LD_pBC_A))
@@ -284,7 +377,9 @@ void z80::execute()
         // MetaData
         // LD (BC), A
         // 2M 7(4,3)T
-        load(mActiveRegisters.A(), mMemory[mActiveRegisters.BC()]);
+        STEP(makeLoad(2, 7,
+                      mActiveRegisters.A(),
+                      makeMemoryAccess(mMemory, mActiveRegisters.BC())));
     }
 
     else if (checkOp(opcode, LD_pDE_A))
@@ -292,7 +387,9 @@ void z80::execute()
         // MetaData
         // LD (DE), A
         // 2M 7(4,3)T
-        load(mActiveRegisters.A(), mMemory[mActiveRegisters.DE()]);
+        STEP(makeLoad(2, 7,
+                      mActiveRegisters.A(),
+                      makeMemoryAccess(mMemory, mActiveRegisters.DE())));
     }
 
     else if (checkOp(opcode, LD_pnn_A))
@@ -301,7 +398,9 @@ void z80::execute()
         // LD (${nn}), A
         // 4M 13(4,3,3,3)T
         value_16b nn(advance(), advance());
-        load(mActiveRegisters.A(), mMemory[nn]);
+        STEP(makeLoad(4, 13,
+                      mActiveRegisters.A(),
+                      makeMemoryAccess(mMemory, nn)));
     }
 
     else if (checkOp(opcode, ED))
@@ -312,8 +411,10 @@ void z80::execute()
             // MetaData
             // LD A, I
             // 2M 9(4,5)T
-            load(mI, mActiveRegisters.A());
-            handleFlag(mI);
+            STEP(makeLoadAndFlag(2, 9,
+                                 I(),
+                                 mActiveRegisters.A(),
+                                 *this));
             /// \todo "If an interrupt occurs during execution of this instruction, the Parity flag contains a 0."
         }
 
@@ -322,8 +423,10 @@ void z80::execute()
             // MetaData
             // LD A, R
             // 2M 9(4,5)T
-            load(mR, mActiveRegisters.A());
-            handleFlag(mR);
+            STEP(makeLoadAndFlag(2, 9,
+                                 R(),
+                                 mActiveRegisters.A(),
+                                 *this));
             /// \todo "If an interrupt occurs during execution of this instruction, the Parity flag contains a 0."
         }
 
@@ -332,7 +435,8 @@ void z80::execute()
             // MetaData
             // LD I, A
             // 2M 9(4,5)T
-            load(mActiveRegisters.A(), mI);
+            STEP(makeLoad(2, 9,
+                          mActiveRegisters.A(), I()));
         }
 
         else if (checkOp(opcode, LD_R_A))
@@ -340,7 +444,8 @@ void z80::execute()
             // MetaData
             // LD R, A
             // 2M 9(4,5)T
-            load(mActiveRegisters.A(), mR);
+            STEP(makeLoad(2, 9,
+                          mActiveRegisters.A(), R()));
         }
     }
 }

@@ -1,7 +1,10 @@
 #ifndef ad_sms_components_z80_h
 #define ad_sms_components_z80_h
 
-#include <array>
+#include "DataTypes.h"
+
+#include <iostream>
+#include <string>
 
 
 namespace ad {
@@ -17,69 +20,101 @@ enum class Prefix
     FD
 };
 
-typedef unsigned char       opcode_t;
-
-typedef unsigned char           value_8b;
-//typedef std::array<value_8b, 2> value_16b;
-
-/// \todo Confirm that this class is not with UB
-/// We store it with the most significant byte first, even though the architecture seems little endian.
-struct value_16b
-{
-    value_16b() = default;
-
-    value_16b(std::uint16_t aInitial) :
-        store({static_cast<value_8b>(aInitial >> 8),
-               static_cast<value_8b>(aInitial & 0x00FF)})
-    {}
-
-    value_16b(value_8b aLeastSignificant, value_8b aMostSignificant) :
-        store({static_cast<value_8b>(aMostSignificant),
-               static_cast<value_8b>(aLeastSignificant)})
-    {}
-
-    operator std::uint16_t() const 
-    {
-        return (store[0] << 8) | (store[1]);
-    }
-
-    value_16b &operator++(int)
-    {
-        std::uint16_t tmp(*this);
-        *this = value_16b(++tmp);
-        return *this;
-    }
-
-    std::array<value_8b, 2> store = {0, 0};
-};
-
-typedef bool flipflop_t;
-
-/// \brief A displacement, represented as a 2's complement signed number on 8bits.
-typedef std::int8_t signed_displacement_8b;
-
-/// \todo Confirm that this function is not with UB
-signed_displacement_8b asDisplacement(value_8b aData)
-{
-    // is this violating the aliasing rule, as the destination is not necesarilly char or unsigned char ?
-    //return reinterpret_cast<signed_displacement_8b &>(aData);
-    
-    signed_displacement_8b result;
-    *reinterpret_cast<unsigned char*>(&result) = aData;
-    return result;
-}
-
-#define PAIRING(X, Y)   \
-    value_8b &X()     { return m##X##Y.store[0]; } \
-    value_8b &Y()     { return m##X##Y.store[1]; } \
-    value_16b &X##Y() { return m##X##Y; }
-
 typedef unsigned Shift_underlying;
 enum class Shift : Shift_underlying
 {
     None = 0,
     Third = 3,
 };
+
+template <class T_value>
+struct Immediate
+{
+    operator T_value &()
+    {
+        return value;
+    }
+
+    T_value value;
+};
+
+template <class T_outputStream, class T_value>
+T_outputStream &operator<<(T_outputStream &aOs, const Immediate<T_value> &aImmediate)
+{
+    return aOs << static_cast<unsigned>(aImmediate.value);
+}
+
+template <class T_value>
+struct Register
+{
+    operator T_value &()
+    {
+        return value;
+    }
+
+    T_value &value;
+    std::string name;
+};
+
+template <class T_value>
+Register<T_value> makeRegister(T_value &aValue, std::string aName)
+{
+    return Register<T_value>{ aValue, std::move(aName) };
+}
+
+template <class T_outputStream, class T_value>
+T_outputStream &operator<<(T_outputStream &aOs, const Register<T_value> &aRegister)
+{
+    return aOs << aRegister.name;
+}
+
+struct Indexed
+{
+    operator std::uint16_t()
+    {
+        /// \todo What happens in the z80 with overflow/underflow ?
+        return static_cast<value_16b>(register_16b) + signedDisplacement;
+    }
+
+    Register<value_16b> register_16b;
+    signed_8b signedDisplacement;
+};
+
+template <class T_outputStream>
+T_outputStream &operator<<(T_outputStream &aOs, const Indexed &aIndexed)
+{
+    return aOs << aIndexed.register_16b
+               << std::showpos << static_cast<int>(aIndexed.signedDisplacement) << std::noshowpos;
+}
+
+template <class T_value>
+struct MemoryAccess
+{
+    operator value_8b &()
+    {
+        return memory[Address{address}];
+    }
+
+    Memory &memory;
+    T_value address;
+};
+
+template <class T_value>
+MemoryAccess<T_value> makeMemoryAccess(Memory &aMemory, T_value aValue)
+{
+    return MemoryAccess<T_value>{ aMemory, std::move(aValue) };
+}
+
+template <class T_outputStream, class T_value>
+T_outputStream &operator<<(T_outputStream &aOs, const MemoryAccess<T_value> &aMemoryAccess)
+{
+    return aOs << '(' << aMemoryAccess.address << ')';
+}
+
+#define PAIRING(X, Y)   \
+    Register<value_8b> X()     { return makeRegister(m##X##Y.store[0], #X); } \
+    Register<value_8b> Y()     { return makeRegister(m##X##Y.store[1], #Y); } \
+    Register<value_16b> X##Y() { return makeRegister(m##X##Y, #X #Y); }
 
 struct RegisterSet
 {
@@ -88,7 +123,7 @@ struct RegisterSet
     PAIRING(D, E)
     PAIRING(H, L)
 
-    value_8b &identify8(opcode_t aSource, Shift aShift)
+    Register<value_8b> identify8(opcode_t aSource, Shift aShift)
     {
         switch (aSource >> static_cast<Shift_underlying>(aShift) & (0b00000111))
         {
@@ -116,12 +151,6 @@ private:
     value_16b mHL;
 };
 
-inline void load(value_8b aSource, value_8b &aDestination)
-{
-    aDestination = aSource;
-}
-
-
 class z80
 {
 public:
@@ -129,12 +158,30 @@ public:
             mMemory(aMemory)
     {}
 
-    void execute();
+    void step();
+    //void execute();
+
+    Register<value_8b> I()
+    {
+        return makeRegister(mI, "I");
+    }
+
+    Register<value_8b> R()
+    {
+        return makeRegister(mR, "R");
+    }
+
+    Register<value_16b> PC()
+    {
+        return makeRegister(mPC, "PC");
+    }
 
 protected:
     value_8b advance();
-    value_16b &indexRegister(Prefix aPrefix);
+    Register<value_16b> indexRegister(Prefix aPrefix);
 
+public:
+    /// \todo Should be protected
     void handleFlag(value_8b aReference);
 
 private:
