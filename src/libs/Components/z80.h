@@ -177,7 +177,7 @@ public:
     }
 
 protected:
-    value_8b advance();
+    value_8b fetch();
     Register<value_16b> indexRegister(Prefix aPrefix);
 
 public:

@@ -135,7 +135,7 @@ Register<value_16b> z80::indexRegister(Prefix aPrefix)
     }
 }
 
-value_8b z80::advance()
+value_8b z80::fetch()
 {
     return mMemory[Address(mPC++)];
 }
@@ -238,12 +238,12 @@ void z80::step()
     SpecialState state;
 
     /// \todo Read opcode from memory
-    opcode_t opcode = advance();
+    opcode_t opcode = fetch();
 
     if (opcode == DD || opcode == FD)
     {
         state.prefix = (opcode == DD ? Prefix::DD : Prefix::FD);
-        opcode = advance();
+        opcode = fetch();
     }
 
     // MetaData
@@ -267,7 +267,7 @@ void z80::step()
             )
     {
         STEP(makeLoad(2, 7,
-                      Immediate<value_8b>{advance()},
+                      Immediate<value_8b>{fetch()},
                       mActiveRegisters.identify8(opcode, Shift::Third))); 
     }
 
@@ -289,7 +289,7 @@ void z80::step()
         else
         {
             STEP(makeLoad(5, 19,
-                          makeMemoryAccess(mMemory, Indexed{ indexRegister(state.prefix), asSigned(advance())}),
+                          makeMemoryAccess(mMemory, Indexed{ indexRegister(state.prefix), asSigned(fetch())}),
                           mActiveRegisters.identify8(opcode, Shift::Third)));
         }
     }
@@ -313,7 +313,7 @@ void z80::step()
         {
             STEP(makeLoad(5, 19,
                           mActiveRegisters.identify8(opcode, Shift::None),
-                          makeMemoryAccess(mMemory, Indexed{ indexRegister(state.prefix), asSigned(advance()) })));
+                          makeMemoryAccess(mMemory, Indexed{ indexRegister(state.prefix), asSigned(fetch()) })));
         }
     }
 
@@ -325,7 +325,7 @@ void z80::step()
         if (state.prefix == Prefix::None)
         {
             STEP(makeLoad(3, 10,
-                          Immediate<value_8b>{ advance() },
+                          Immediate<value_8b>{ fetch() },
                           makeMemoryAccess(mMemory, mActiveRegisters.HL())));
         }
 
@@ -334,9 +334,9 @@ void z80::step()
         // 5M 19 (4, 4, 3, 5, 3)T
         else
         {
-            signed_8b d = asSigned(advance());
+            signed_8b d = asSigned(fetch());
             STEP(makeLoad(5, 19,
-                          Immediate<value_8b>{ advance() },
+                          Immediate<value_8b>{ fetch() },
                           makeMemoryAccess(mMemory, Indexed{ indexRegister(state.prefix), d })));
         }
     }
@@ -366,7 +366,7 @@ void z80::step()
         // MetaData
         // LD A, (${nn})
         // 4M 13(4,3,3,3)T
-        value_16b nn(advance(), advance());
+        value_16b nn(fetch(), fetch());
         STEP(makeLoad(4, 13,
                       makeMemoryAccess(mMemory, nn),
                       mActiveRegisters.A()));
@@ -397,7 +397,7 @@ void z80::step()
         // MetaData
         // LD (${nn}), A
         // 4M 13(4,3,3,3)T
-        value_16b nn(advance(), advance());
+        value_16b nn(fetch(), fetch());
         STEP(makeLoad(4, 13,
                       mActiveRegisters.A(),
                       makeMemoryAccess(mMemory, nn)));
@@ -405,7 +405,7 @@ void z80::step()
 
     else if (checkOp(opcode, ED))
     {
-        opcode = advance();
+        opcode = fetch();
         if (checkOp(opcode, LD_A_I))
         {
             // MetaData
