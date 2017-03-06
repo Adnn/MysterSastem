@@ -19,7 +19,7 @@ class Memory; // forward
 template <class T_value>
 struct Immediate
 {
-    operator T_value &()
+    operator T_value()
     {
         return value;
     }
@@ -65,6 +65,7 @@ T_outputStream &operator<<(T_outputStream &aOs, const Register<T_value> &aRegist
 //
 struct Indexed
 {
+    /// \todo It should probably return an Address instance directly
     operator std::uint16_t()
     {
         /// \todo What happens in the z80 with overflow/underflow ?

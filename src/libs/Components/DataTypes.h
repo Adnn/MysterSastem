@@ -14,7 +14,7 @@ typedef unsigned char           value_8b;
 //typedef std::array<value_8b, 2> value_16b;
 
 /// \todo Confirm that this class is not with UB
-/// We store it with the most significant byte first, even though the architecture seems little endian.
+// Detail: We store it with the most significant byte first, even though the architecture seems little endian.
 struct value_16b
 {
     value_16b() = default;
@@ -39,6 +39,30 @@ struct value_16b
         std::uint16_t tmp(*this);
         *this = value_16b(tmp+1);
         return tmp;
+    }
+
+    value_16b & operator+=(int aRhs)
+    {
+        std::uint16_t tmp(*this);
+        *this = value_16b(tmp+aRhs);
+        return *this;
+    }
+
+    value_16b & operator-=(int aRhs)
+    {
+        std::uint16_t tmp(*this);
+        *this = value_16b(tmp-aRhs);
+        return *this;
+    }
+
+    value_8b &low()
+    {
+        return store[1];
+    }
+
+    value_8b &high()
+    {
+        return store[0];
     }
 
     std::array<value_8b, 2> store = {0, 0};

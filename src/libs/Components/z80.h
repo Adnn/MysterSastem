@@ -35,6 +35,8 @@ public:
 protected:
     value_8b fetch();
 
+    Immediate<value_16b> fetchImmediate16();
+
 public:
     /// \todo Should be protected
     void handleFlag(value_8b aReference);
