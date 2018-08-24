@@ -30,7 +30,7 @@ struct Immediate
 template <class T_outputStream, class T_value>
 T_outputStream &operator<<(T_outputStream &aOs, const Immediate<T_value> &aImmediate)
 {
-    return aOs << static_cast<unsigned>(aImmediate.value);
+    return aOs << std::hex << std::uppercase << static_cast<unsigned>(aImmediate.value) << std::dec << 'H';
 }
 
 //
@@ -92,6 +92,17 @@ struct MemoryAccess
     operator value_8b &()
     {
         return memory[Address{address}];
+    }
+
+    operator value_16b ()
+    {
+        return {memory[Address{address}], memory[Address{address} + 1]};
+    }
+
+    void assign16(value_16b aValue)
+    {
+        memory[Address{address}]        = aValue.low();
+        memory[Address{address} + 1]    = aValue.high();
     }
 
     Memory &memory;

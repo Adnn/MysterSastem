@@ -192,6 +192,17 @@ inline void load(value_8b aSource, value_8b &aDestination)
     aDestination = aSource;
 }
 
+inline void load(value_16b aSource, value_16b &aDestination)
+{
+    aDestination = aSource;
+}
+
+template <class T_value>
+inline void load(value_16b aSource, MemoryAccess<T_value> &aDestination)
+{
+    aDestination.assign16(aSource);
+}
+
 template <class T_source, class T_destination>
 class Load : public Instruction
 {
@@ -303,9 +314,11 @@ public:
     }
 };
 
-#define STEP(x) auto inst(x); std::cout << __LINE__ << ": " << inst.disassemble() << std::endl; /*inst.execute();*/ return;
+//#define STEP(x) auto inst(x); mOs << __LINE__ << ": " << inst.disassemble()/*<< std::endl*/; inst.execute(); return;
+#define STEP(x) return aProcess.process(x, __LINE__);
 
-void z80::step()
+template <class T_process>
+typename T_process::return_type z80::step(T_process &aProcess)
 {
     SpecialState state;
 
@@ -330,7 +343,7 @@ void z80::step()
     // MetaData
     // LD ${r_dest}, ${r_source}
     // 1M 4T
-    if ( checkOp(opcode, LD_r_r)
+    if ( checkOp(opcode, LD_r_r) && !state.ED
       && ((opcode & 0b00000111) != 0b00000110) //otherwise it catches LD_r_ria case...
       && ((opcode & 0b00111000) != 0b00110000) //otherwise it catches LD_ria_r case...
        )
@@ -486,7 +499,6 @@ void z80::step()
 
     else if (state.ED)
     {
-        opcode = fetch();
         if (checkOp(opcode, LD_A_I))
         {
             // MetaData
@@ -653,3 +665,6 @@ void z80::step()
                  registers().getIndex(state.prefix), mMemory, registers().SP()));
     }
 }
+
+template Disassembler::return_type z80::step<Disassembler>(Disassembler &aProcess);
+template Debugger::return_type z80::step<Debugger>(Debugger &aProcess);

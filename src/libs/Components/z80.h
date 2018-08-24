@@ -29,7 +29,8 @@ public:
     //
     // Operation
     //
-    void step();
+    template <class T_process>
+    typename T_process::return_type step(T_process &aProcess);
     //void execute();
 
 protected:
@@ -46,6 +47,35 @@ private:
     Memory &mMemory;    
 };
 
+/*
+ * Processes
+ */
+struct Disassembler
+{
+    typedef void return_type;
+
+template <class T_instruction>
+    void process(T_instruction && aInstruction, int aLineNumber)
+    {
+        mOs << aLineNumber << ": " << aInstruction.disassemble();
+    }
+
+    std::ostream &mOs;
+};
+
+struct Debugger
+{
+    typedef void return_type;
+
+    template <class T_instruction>
+    void process(T_instruction && aInstruction, int aLineNumber)
+    {
+        mOs << aLineNumber << ": " << aInstruction.disassemble();
+        aInstruction.execute();
+    }
+
+    std::ostream &mOs;
+};
 }}} // namespace ad::sms::components
 
 #endif

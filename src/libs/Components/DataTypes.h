@@ -90,13 +90,19 @@ class Address
     friend class Memory;
 
 public:
-    explicit Address(std::uint16_t aValue) :
+    Address(std::uint16_t aValue) :
             mValue(aValue)
     {}
 
     explicit Address(value_16b aValue) :
             mValue(aValue)
     {}
+
+    Address operator+(signed_8b aDisplacement)
+    {
+        /// \todo What is the overflow and underflow behaviour ?
+        return Address{static_cast<std::uint16_t>(mValue + aDisplacement)};
+    }
 
 private:
     std::uint16_t mValue;
