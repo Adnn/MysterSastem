@@ -11,18 +11,30 @@ namespace components {
 /// \brief Represents memory with a 16bits address bus and an 8bits data bus.
 class Memory
 {
+    static constexpr int gRamStart = 0xC000;
+
 public:
-    Memory(value_8b *aData) :
-            mDataStore(aData)
+    Memory(value_8b *aSlotData, value_8b *aWorkRam) :
+            mSlotData(aSlotData),
+            mWorkRam(aWorkRam)
     {}
 
     value_8b &operator[](Address aAddress)
     {
-        return mDataStore[aAddress.mValue];
+        if (aAddress.mValue < gRamStart)
+        {
+            return mSlotData[aAddress.mValue];
+        }
+        else
+        {
+            return mWorkRam[aAddress.mValue];
+        }
     }
 
 private:
-    value_8b *mDataStore;
+    value_8b *mSlotData;
+    value_8b *mWorkRam;
+
 };
 
 }}} // namespace ad::sms::components
