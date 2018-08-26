@@ -57,11 +57,7 @@ option(BUILD_SHARED_LIBS "Build shared libraries" false)
 # 
 # C++14 support
 # 
-include(cmc-cpp) # for enable_cpp_version
-option(BUILD_WITH_C++14_SUPPORT "Set the compiler flags/options required to compile with C++14 support" true)
-if(BUILD_WITH_C++14_SUPPORT)
-    enable_cpp_version(C++14)
-endif()
+set(CMAKE_CXX_STANDARD 14)
 
 
 ## #################################################################
