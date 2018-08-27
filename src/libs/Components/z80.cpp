@@ -356,7 +356,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
     // MetaData
     // LD ${r_dest}, ${n}
     // 2M 7(4,3)T
-    else if ( checkOp(opcode, LD_r_n) 
+    if ( checkOp(opcode, LD_r_n) 
            && ((opcode & 0b00111000) != 0b00110000) //otherwise it catches LD_ria_n case...
             )
     {
@@ -365,7 +365,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
                       registers().identify8(opcode, Shift::Third))); 
     }
 
-    else if (checkOp(opcode, LD_r_ria))
+    if (checkOp(opcode, LD_r_ria))
     {
         // MetaData
         // LD ${r_dest}, (HL) 
@@ -388,7 +388,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
         }
     }
 
-    else if (checkOp(opcode, LD_ria_r))
+    if (checkOp(opcode, LD_ria_r))
     {
         // MetaData
         // LD (HL), ${r_source}
@@ -411,7 +411,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
         }
     }
 
-    else if (checkOp(opcode, LD_ria_n))
+    if (checkOp(opcode, LD_ria_n))
     {
         // MetaData
         // LD (HL), ${n}
@@ -435,7 +435,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
         }
     }
 
-    else if (checkOp(opcode, LD_A_pBC))
+    if (checkOp(opcode, LD_A_pBC))
     {
         // MetaData
         // LD A, (BC)
@@ -445,7 +445,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
                       registers().A()));
     }
 
-    else if (checkOp(opcode, LD_A_pDE))
+    if (checkOp(opcode, LD_A_pDE))
     {
         // MetaData
         // LD A, (DE)
@@ -455,7 +455,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
                       registers().A()));
     }
 
-    else if (checkOp(opcode, LD_A_pnn))
+    if (checkOp(opcode, LD_A_pnn))
     {
         // MetaData
         // LD A, (${nn})
@@ -466,7 +466,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
                       registers().A()));
     }
 
-    else if (checkOp(opcode, LD_pBC_A))
+    if (checkOp(opcode, LD_pBC_A))
     {
         // MetaData
         // LD (BC), A
@@ -476,7 +476,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
                       makeMemoryAccess(mMemory, registers().BC())));
     }
 
-    else if (checkOp(opcode, LD_pDE_A))
+    if (checkOp(opcode, LD_pDE_A))
     {
         // MetaData
         // LD (DE), A
@@ -486,7 +486,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
                       makeMemoryAccess(mMemory, registers().DE())));
     }
 
-    else if (checkOp(opcode, LD_pnn_A))
+    if (checkOp(opcode, LD_pnn_A))
     {
         // MetaData
         // LD (${nn}), A
@@ -497,7 +497,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
                       makeMemoryAccess(mMemory, nn)));
     }
 
-    else if (state.ED)
+    if (state.ED)
     {
         if (checkOp(opcode, LD_A_I))
         {
@@ -546,7 +546,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
     /*
      * 16-Bit Load Group
      */
-    else if ((state.prefix==Prefix::None) && checkOp(opcode, LD_dd_nn))
+    if ((state.prefix==Prefix::None) && checkOp(opcode, LD_dd_nn))
     {
         // MetaData
         // LD ${dd}, ${nn}
@@ -555,7 +555,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
                       fetchImmediate16(), registers().identify_dd(opcode)));
     }
 
-    else if ((state.prefix!=Prefix::None) && checkOp(opcode, LD_idx_nn))
+    if ((state.prefix!=Prefix::None) && checkOp(opcode, LD_idx_nn))
     {
         // MetaData
         // LD ${index_r}, ${nn}
@@ -564,7 +564,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
                       fetchImmediate16(), registers().getIndex(state.prefix)));
     }
 
-    else if (checkOp(opcode, LD_idx_pnn))
+    if (checkOp(opcode, LD_idx_pnn))
     {
         if (0b1000 & opcode)
         {
@@ -599,7 +599,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
         }
     }
 
-    else if (state.ED && checkOp(opcode, LD_dd_pnn))
+    if (state.ED && checkOp(opcode, LD_dd_pnn))
     {
         // MetaData
         // LD ${dd}, (${nn})
@@ -609,7 +609,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
                       registers().identify_dd(opcode)));
     }
 
-    else if (state.ED && checkOp(opcode, LD_pnn_dd))
+    if (state.ED && checkOp(opcode, LD_pnn_dd))
     {
         // MetaData
         // LD (${nn}), ${dd}
@@ -619,7 +619,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
                       makeMemoryAccess(mMemory, fetchImmediate16())));
     }
 
-    else if (checkOp(opcode, LD_SP_idx))
+    if (checkOp(opcode, LD_SP_idx))
     {
         // MetaData
         // LD SP, ${index_r}
@@ -629,7 +629,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
                       registers().SP()));
     }
 
-    else if (state.prefix==Prefix::None && checkOp(opcode, PUSH_qq))
+    if (state.prefix==Prefix::None && checkOp(opcode, PUSH_qq))
     {
         // MetaData
         // PUSH ${qq}
@@ -638,7 +638,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
                   registers().identify_qq(opcode), mMemory, registers().SP()));
     }
 
-    else if (state.prefix!=Prefix::None && checkOp(opcode, PUSH_idx))
+    if (state.prefix!=Prefix::None && checkOp(opcode, PUSH_idx))
     {
         // MetaData
         // PUSH ${idx}
@@ -647,7 +647,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
                   registers().getIndex(state.prefix), mMemory, registers().SP()));
     }
 
-    else if (state.prefix==Prefix::None && checkOp(opcode, POP_qq))
+    if (state.prefix==Prefix::None && checkOp(opcode, POP_qq))
     {
         // MetaData
         // POP ${qq}
@@ -656,7 +656,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
                  registers().identify_qq(opcode), mMemory, registers().SP()));
     }
 
-    else if (state.prefix!=Prefix::None && checkOp(opcode, POP_idx))
+    if (state.prefix!=Prefix::None && checkOp(opcode, POP_idx))
     {
         // MetaData
         // POP ${idx}
