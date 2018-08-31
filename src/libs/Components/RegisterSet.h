@@ -155,7 +155,7 @@ private:
             value_16b        &mAF;
         } mArithmeticRegisters;
         GeneralRegisters &mGeneralRegisters;
-    } mActiveRegisters = {mAF, mGeneralRegisters};
+    } mActiveRegisters { {mAF}, mGeneralRegisters};
 
     /// \todo Check for the initialization values
     value_16b mPC = 0;
@@ -171,6 +171,7 @@ private:
     flipflop_t mIFF1 = true;
     flipflop_t mIFF2 = true;
 };
+
 
 }}} // namespace ad::sms::components
 

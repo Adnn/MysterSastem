@@ -4,6 +4,7 @@
 #include "3rdparty/catch.hpp"
 
 #include <regex>
+#include <sstream>
 
 using namespace ad::sms;
 
@@ -207,6 +208,7 @@ std::vector<TestLine> Load16Bits = {
         }
     },
 };
+
 
 TEST_CASE("16-bit load instructions ...")
 {

@@ -20,13 +20,13 @@ struct value_16b
     value_16b() = default;
 
     value_16b(std::uint16_t aInitial) :
-        store({static_cast<value_8b>(aInitial >> 8),
-               static_cast<value_8b>(aInitial & 0x00FF)})
+        store({{static_cast<value_8b>(aInitial >> 8),
+                static_cast<value_8b>(aInitial & 0x00FF)}})
     {}
 
     value_16b(value_8b aLeastSignificant, value_8b aMostSignificant) :
-        store({static_cast<value_8b>(aMostSignificant),
-               static_cast<value_8b>(aLeastSignificant)})
+        store({{static_cast<value_8b>(aMostSignificant),
+                static_cast<value_8b>(aLeastSignificant)}})
     {}
 
     operator std::uint16_t() const 
@@ -65,7 +65,7 @@ struct value_16b
         return store[0];
     }
 
-    std::array<value_8b, 2> store = {0, 0};
+    std::array<value_8b, 2> store{{0, 0}};
 };
 
 typedef bool flipflop_t;
