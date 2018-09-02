@@ -66,7 +66,7 @@ public:
         mStack.emplace(&(*emplaceResult.first));
     }
 
-    void existSection()
+    void exitSection()
     {
         mStack.pop();
     }

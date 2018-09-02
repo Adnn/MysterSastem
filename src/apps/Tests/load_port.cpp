@@ -38,7 +38,7 @@ TEST_CASE("Text operators")
 
         SECTION("can modify the cpu state")
         {
-            components::actOnState(assigner, gRefJson, cpu, smsMemory.memory());
+            actOnState(assigner, gRefJson, cpu, smsMemory.memory());
 
             json::const_reference cpuRef = gRefJson["cpu"];
             CHECK(cpu.registers().A().value == cpuRef["A"]);
@@ -50,13 +50,23 @@ TEST_CASE("Text operators")
 
         SECTION("can modify the memory state")
         {
-            components::actOnState(assigner, gRefJson, cpu, smsMemory.memory());
+            actOnState(assigner, gRefJson, cpu, smsMemory.memory());
 
             json::const_reference memoryRef = gRefJson["memory"];
             CHECK(smsMemory.memory()[0x14A4] == memoryRef["0x14A4"]);
             CHECK(smsMemory.memory()[8] == memoryRef["8"]);
         }
     } 
-    
+
+    SECTION("JsonDumper")
+    {
+        components::Assigner assigner;
+        components::JsonDumper dumper;
+
+        actOnState(assigner, gRefJson, cpu, smsMemory.memory());
+        actOnState(dumper, gRefJson, cpu, smsMemory.memory());
+
+        REQUIRE(dumper.dump() == gRefJson);
+    }
 }
 
