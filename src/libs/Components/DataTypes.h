@@ -29,7 +29,7 @@ struct value_16b
                 static_cast<value_8b>(aLeastSignificant)}})
     {}
 
-    operator std::uint16_t() const 
+    operator std::uint16_t() const
     {
         return (store[0] << 8) | (store[1]);
     }
@@ -79,7 +79,7 @@ inline signed_8b asSigned(value_8b aData)
 {
     // is this violating the aliasing rule, as the destination is not necesarilly char or unsigned char ?
     //return reinterpret_cast<signed_displacement_8b &>(aData);
-    
+
     signed_8b result;
     *reinterpret_cast<unsigned char*>(&result) = aData;
     return result;

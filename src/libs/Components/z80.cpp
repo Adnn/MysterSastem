@@ -213,7 +213,7 @@ public:
             mDestination(std::move(aDestination))
     {}
 
-    void execute() 
+    void execute()
     {
         load(mSource, mDestination);
     }
@@ -241,7 +241,7 @@ public:
             cpu(aCpu)
     {}
 
-    void execute() 
+    void execute()
     {
         parent_type::execute();
         cpu.handleFlag(mSource);
@@ -350,7 +350,7 @@ typename T_process::return_type z80::step(T_process &aProcess)
     {
         STEP(makeLoad({1, 4},
                       registers().identify8(opcode, Shift::None),
-                      registers().identify8(opcode, Shift::Third))); 
+                      registers().identify8(opcode, Shift::Third)));
     }
 
     // MetaData
